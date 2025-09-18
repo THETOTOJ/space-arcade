@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import * as THREE from "three";
 import { AsteroidModel } from "../models/AsteroidModel";
 import { Ship1Model } from "../models/Ship1Model";
+import { Ship2Model } from "../models/Ship2Model";
 import { GameHUD } from "../ui/GameHUD";
 import { GameOverScreen } from "../ui/GameOverScreen";
 import { PauseMenu } from "../ui/PauseMenu";
@@ -27,7 +28,7 @@ interface Asteroid {
 }
 
 interface SpaceInvaderSceneProps {
-  playerShip: "ship1";
+  playerShip: "ship1" | "ship2";
   gameState: UseGameStateReturn;
   onGameOver: (reason: string) => void;
   onScoreAdd: (points: number) => void;
@@ -45,7 +46,7 @@ function SpaceInvaderScene({
   const [lasers, setLasers] = useState<Laser[]>([]);
   const [keys, setKeys] = useState<Record<string, boolean>>({});
 
-  const PlayerShip = Ship1Model;
+  const PlayerShip = playerShip === "ship1" ? Ship1Model : Ship2Model;
 
   const createAsteroids = (): Asteroid[] => {
     const newAsteroids: Asteroid[] = [];
@@ -86,11 +87,13 @@ function SpaceInvaderScene({
   useFrame(() => {
     if (gameState.gameState !== "playing") return;
 
+    // Move player
     if (keys["ArrowLeft"] || keys["KeyA"])
       setPlayerX((prev) => Math.max(-4, prev - 0.1));
     if (keys["ArrowRight"] || keys["KeyD"])
       setPlayerX((prev) => Math.min(4, prev + 0.1));
 
+    // Auto-shoot
     if (Math.random() < 0.04) {
       setLasers((prev) => [
         ...prev,
@@ -102,19 +105,17 @@ function SpaceInvaderScene({
       playSound("/sounds/shoot.mp3", 0.2);
     }
 
+    // Move lasers
     setLasers((prev) =>
       prev
         .map((laser) => ({
           ...laser,
-          position: new THREE.Vector3(
-            laser.position.x,
-            laser.position.y + 0.1,
-            0
-          ),
+          position: new THREE.Vector3(laser.position.x, laser.position.y + 0.1, 0),
         }))
         .filter((laser) => laser.position.y < 5)
     );
 
+    // Move asteroids
     setAsteroids((prev) =>
       prev.map((ast) => ({
         ...ast,
@@ -122,6 +123,7 @@ function SpaceInvaderScene({
       }))
     );
 
+    // Laser-asteroid collisions
     setLasers((prevLasers) => {
       const remainingLasers: Laser[] = [];
       prevLasers.forEach((laser) => {
@@ -149,6 +151,7 @@ function SpaceInvaderScene({
       return remainingLasers;
     });
 
+    // Check if asteroids reached player
     asteroids.forEach((ast) => {
       if (ast.position.y < -2) {
         onGameOver("Asteroids reached you!");
@@ -156,6 +159,7 @@ function SpaceInvaderScene({
       }
     });
 
+    // Spawn new wave if cleared
     if (asteroids.length === 0) {
       setAsteroids(createAsteroids());
       onScoreAdd(100);
@@ -191,8 +195,8 @@ function SpaceInvaderScene({
 }
 
 interface SpaceInvaderProps {
-  playerShip: "ship1";
-  enemyShip?: "ship1";
+  playerShip: "ship1" | "ship2";
+  enemyShip?: "ship1" | "ship2";
 }
 
 export function SpaceInvader({ playerShip, enemyShip }: SpaceInvaderProps) {
